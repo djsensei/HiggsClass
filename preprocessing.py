@@ -81,6 +81,64 @@ def split_train_8bins(trainfile='training.csv',splitcv=False):
       print 'Jet bin '+k+' count: '+str(n)
   return
 
+def signal_weight_type(line):
+  # Determines if a line is background or one of the four signal types.
+  # Returns one of 'b','s1','s2','s3','s4'
+  if 'b' in line:
+    return 'b'
+  elif '0.0026533' in line:
+    return 's1'
+  elif '0.0186361' in line:
+    return 's2'
+  elif '0.0015018' in line:
+    return 's3'
+  elif '0.0015027' in line:
+    return 's4'
+  else:
+    print 'Weird signal: '+line
+    return
+def signal_weight_split(infname, outfnames, header=False):
+  # Splits a training file into 5 smaller files: 1 background and 4 signals
+  #   based on the 4 possible signal weights. Prints counts of each.
+  # outfnames is a dict of output file names, keyed with b s1 s2 s3 s4.
+  outf = {}
+  counts = {}
+  for k in ['b','s1','s2','s3','s4']:
+    outf[k] = open(outfnames[k],'w')
+    counts[k] = 0
+  with open(infname) as rf:
+    if header:
+      rf.readline()
+    while True:
+      l = rf.readline()
+      if l == '':
+        break
+      t = signal_weight_type(l)
+      outf[t].write(l)
+      counts[t] += 1
+  for k in ['b','s1','s2','s3','s4']:
+    outf[k].close()
+    print k + ': ' + str(counts[k])
+  return
+def signal_weight_process_jets():
+  # Process each jet training file with signal weight split, printing lengths
+  for jk in jet_bins:
+    infname = 'Data/all_'+jk+'.csv'
+    outfnames = {}
+    for t in ['b','s1','s2','s3','s4']:
+      outfnames[t] = 'Data/jet_'+jk+'_'+t+'.csv'
+    print 'Splitting bin ' + jk + '...'
+    signal_weight_split(infname, outfnames)
+  return
+def signal_weight_process_all():
+  # Processes the entire training set with signal weight split
+  infname = 'training.csv'
+  outfnames = {}
+  for t in ['b','s1','s2','s3','s4']:
+    outfnames[t] = 'Data/training'+'_'+t+'.csv'
+  signal_weight_split(infname, outfnames, header=True)
+  return
+
 # small_csv generates a small csv (first n lines of readfile) for code-testing
 def small_csv(readfile, writefile, n=100, killheader=False):
   with open(readfile) as rf:
@@ -269,7 +327,21 @@ def order_predictions(predin,predout):
       f.write(sl[i][0]+','+str(i+1)+','+sl[i][2]+'\n')
   return
 
+def AMS_solution_build():
+  # Creates a solution file from training.csv for using the AMS_metric code
+  with open('training_solutions.csv','w') as sol:
+    sol.write('ID,Label,Weight\n')
+    with open('training.csv') as rf:
+      rf.readline()
+      for i in xrange(250000):
+        l = rf.readline()
+        l = l.strip('\n')
+        l = l.split(',')
+        sol.write(l[0]+','+l[32]+','+l[31]+'\n')
+  return
+
+
 if __name__ == '__main__':
   print 'nothing to see here.'
 
-  order_predictions('jet_8_pred.csv','jet_8_pred_ordered.csv')
+  AMS_solution_build()
